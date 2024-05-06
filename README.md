@@ -1,4 +1,69 @@
-# Issue H-1: Code asymmetry of `globalPositions.marginDepositedTotal` 
+# Issue M-1: Large amount of points can STILL be minted without any cost 
+
+Source: https://github.com/sherlock-audit/2024-03-flat-money-fix-review-contest-judging/issues/10 
+
+The protocol has acknowledged this issue.
+
+## Found by 
+Bauchibred, santipu\_, xiaoming90
+## Summary
+
+An issue was raised in the last FlatMoney audit ([here](https://github.com/sherlock-audit/2023-12-flatmoney-judging/issues/187)) where the watsons pointed out that the points could be minted without any cost, this issue still remains, and now the attacker can prevent other users from earning points. 
+
+## Vulnerability Detail
+
+The issue raised in the last audit pointed out that an attacker could perform the following attack to mint a large number of points:
+1. Deposit liquidity
+2. After a short amount of time, withdraw it
+3. Repeat the attack, minting a huge amount of points
+
+This attack can still be executed to mint a large number of points at almost no cost. The mitigation that was implemented (if I'm not mistaken), consisted of a rate limit on the minted points. Even though this mitigation would reduce the profit of an attacker, it won't prevent the attacker from minting the maximum amount of points until the rate limit is reached. 
+
+Moreover, an attacker could use the rate limit to prevent other users from minting points. By constantly depositing and withdrawing liquidity, it would mint all points for himself until the rate limit is reached. Then, when other innocent users deposit liquidity or make trades, they won't receive any points.
+
+## Impact
+
+The attacker can still mint a large amount of points, and prevent other users from receiving them.
+
+## Code Snippet
+
+https://github.com/sherlock-audit/2024-03-flat-money-fix-review-contest/blob/main/flatcoin-v1/src/StableModule.sol#L93
+
+## Tool used
+
+Manual Review
+
+## Recommendation
+
+Reduce the amount of points earned when users withdraw liquidity or implement a withdrawal fee even if the LP is the last in the market. 
+
+
+
+
+
+## Discussion
+
+**sherlock-admin2**
+
+2 comment(s) were left on this issue during the judging contest.
+
+**santipu_** commented:
+> Medium
+
+**takarez** commented:
+>  valid; medium(1)
+
+
+
+**itsermin**
+
+There is a cost associated with withdrawing liquidity in the form of the withdrawal fee.
+If a user wishes to mint points and giving collateral fees to LP holders, then that's their choice. It's an exchange.
+These fees increase the returns for the LPs and create incentive for more deposits.
+
+There will be no change to this functionality.
+
+# Issue M-2: Code asymmetry of `globalPositions.marginDepositedTotal` 
 
 Source: https://github.com/sherlock-audit/2024-03-flat-money-fix-review-contest-judging/issues/19 
 
@@ -257,72 +322,89 @@ Yes, it looks like when `marginDepositedTotal` is negative, opening a new levera
 
 By removing this line (not zeroing a negative `marginDepositedTotal`), the system is able to handle the scenario.
 
-# Issue M-1: Large amount of points can STILL be minted without any cost 
+**santipu03**
 
-Source: https://github.com/sherlock-audit/2024-03-flat-money-fix-review-contest-judging/issues/10 
+Escalate
 
-The protocol has acknowledged this issue.
+I believe this issue to be medium severity due to the low probability of happening. 
 
-## Found by 
-Bauchibred, santipu\_, xiaoming90
-## Summary
+For this bug to be triggered it needs the value of `globalPositions.marginDepositedTotal` to be negative. These scenarios can cause it:
+1. The total debt of the positions on the market becomes bigger than the total deposited margin.
+2. The funding fee becomes bigger than the total deposited margin.
+3. A combination of both scenarios above.
 
-An issue was raised in the last FlatMoney audit ([here](https://github.com/sherlock-audit/2023-12-flatmoney-judging/issues/187)) where the watsons pointed out that the points could be minted without any cost, this issue still remains, and now the attacker can prevent other users from earning points. 
+Scenario 1 is highly unlikely to happen because insolvent positions would have been liquidated before their debt became bigger than the total deposited margin on the market. Moreover, in a volatile market, the protocol team can adjust the value of `liquidationBufferRatio` to ensure that even sharp price movements don't cause positions to get underwater. 
 
-## Vulnerability Detail
+Scenario 2 is also highly unlikely to happen because when the funding fee is so big, it's expected that the market will regulate itself, bringing the skew back to zero and decreasing the funding fees. Even if the funding fee starts to rapidly decrease the margins of the positions, liquidators will step up and liquidate those underwater positions before bad debt is accrued. 
 
-The issue raised in the last audit pointed out that an attacker could perform the following attack to mint a large number of points:
-1. Deposit liquidity
-2. After a short amount of time, withdraw it
-3. Repeat the attack, minting a huge amount of points
-
-This attack can still be executed to mint a large number of points at almost no cost. The mitigation that was implemented (if I'm not mistaken), consisted of a rate limit on the minted points. Even though this mitigation would reduce the profit of an attacker, it won't prevent the attacker from minting the maximum amount of points until the rate limit is reached. 
-
-Moreover, an attacker could use the rate limit to prevent other users from minting points. By constantly depositing and withdrawing liquidity, it would mint all points for himself until the rate limit is reached. Then, when other innocent users deposit liquidity or make trades, they won't receive any points.
-
-## Impact
-
-The attacker can still mint a large amount of points, and prevent other users from receiving them.
-
-## Code Snippet
-
-https://github.com/sherlock-audit/2024-03-flat-money-fix-review-contest/blob/main/flatcoin-v1/src/StableModule.sol#L93
-
-## Tool used
-
-Manual Review
-
-## Recommendation
-
-Reduce the amount of points earned when users withdraw liquidity or implement a withdrawal fee even if the LP is the last in the market. 
-
-
-
-
-
-## Discussion
+Given the low probability of this bug happening, I think it deserves medium severity. 
 
 **sherlock-admin2**
 
-2 comment(s) were left on this issue during the judging contest.
+> Escalate
+> 
+> I believe this issue to be medium severity due to the low probability of happening. 
+> 
+> For this bug to be triggered it needs the value of `globalPositions.marginDepositedTotal` to be negative. These scenarios can cause it:
+> 1. The total debt of the positions on the market becomes bigger than the total deposited margin.
+> 2. The funding fee becomes bigger than the total deposited margin.
+> 3. A combination of both scenarios above.
+> 
+> Scenario 1 is highly unlikely to happen because insolvent positions would have been liquidated before their debt became bigger than the total deposited margin on the market. Moreover, in a volatile market, the protocol team can adjust the value of `liquidationBufferRatio` to ensure that even sharp price movements don't cause positions to get underwater. 
+> 
+> Scenario 2 is also highly unlikely to happen because when the funding fee is so big, it's expected that the market will regulate itself, bringing the skew back to zero and decreasing the funding fees. Even if the funding fee starts to rapidly decrease the margins of the positions, liquidators will step up and liquidate those underwater positions before bad debt is accrued. 
+> 
+> Given the low probability of this bug happening, I think it deserves medium severity. 
 
-**santipu_** commented:
-> Medium
+You've created a valid escalation!
 
-**takarez** commented:
->  valid; medium(1)
+To remove the escalation from consideration: Delete your comment.
+
+You may delete or edit your escalation comment anytime before the 48-hour escalation window closes. After that, the escalation becomes final.
+
+**cvetanovv**
+
+I agree with the low probability, but when it happens it definitely hits the High category on both points according to the rules:
+> - Definite loss of funds without (extensive) limitations of external conditions.
+> - Inflicts serious non-material losses.
+
+**santipu03**
+
+The README states that the protocol is running liquidators, so it's assumed that unhealthy positions are going to be liquidated on time and bad debt is not going to be created: 
+
+> Are there any off-chain mechanisms or off-chain procedures for the protocol (keeper bots, arbitrage bots, etc.)?
+> - There are keepers for order execution and liquidations. [...]
+
+I'd say that this itself is an extensive limitation for this issue to happen. 
+
+**WangSecurity**
+
+Even though the protocol will be using keepers for order execution and liquidations, it doesn't ensure that every liquidatable position will be liquidated. Despite that fact, the issue will happen in the scenarios listend in the escalation comment [here](https://github.com/sherlock-audit/2024-03-flat-money-fix-review-contest-judging/issues/19#issuecomment-2070851874), hence, I believe medium is appropriate here cause it requires specific states, and loss is highly constrained:
+
+> Causes a loss of funds but requires certain external conditions or specific states, or a loss is highly constrained.
+
+Planning to accept the escalation and downgrade the issue to Medium.
+
+**Evert0x**
+
+Result:
+Medium
+Unique 
+
+**sherlock-admin2**
+
+Escalations have been resolved successfully!
+
+Escalation status:
+- [santipu03](https://github.com/sherlock-audit/2024-03-flat-money-fix-review-contest-judging/issues/19/#issuecomment-2070851874): accepted
+
+**sherlock-admin2**
+
+The protocol team fixed this issue in the following PRs/commits:
+https://github.com/dhedge/flatcoin-v1/pull/344
 
 
-
-**itsermin**
-
-There is a cost associated with withdrawing liquidity in the form of the withdrawal fee.
-If a user wishes to mint points and giving collateral fees to LP holders, then that's their choice. It's an exchange.
-These fees increase the returns for the LPs and create incentive for more deposits.
-
-There will be no change to this functionality.
-
-# Issue M-2: Attacker can steal LPs funds by using different oracle prices in the same transaction 
+# Issue M-3: Attacker can steal LPs funds by using different oracle prices in the same transaction 
 
 Source: https://github.com/sherlock-audit/2024-03-flat-money-fix-review-contest-judging/issues/27 
 
