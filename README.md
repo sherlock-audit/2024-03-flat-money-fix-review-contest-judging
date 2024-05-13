@@ -404,6 +404,10 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/dhedge/flatcoin-v1/pull/344
 
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue M-3: Attacker can steal LPs funds by using different oracle prices in the same transaction 
 
 Source: https://github.com/sherlock-audit/2024-03-flat-money-fix-review-contest-judging/issues/27 
